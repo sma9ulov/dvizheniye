@@ -1,0 +1,145 @@
+import os
+import pandas as pd
+path = r'C:\Users\user\Downloads\kaggle_data' 
+data = {}
+
+Data = []
+Target = []
+
+i=0
+for dir_entry in sorted(os.listdir(path)):
+    dir_entry_path = os.path.join(path, dir_entry)
+    if os.path.isfile(dir_entry_path):
+        i+=1
+        with open(dir_entry_path, 'r') as my_file:
+            print(dir_entry_path.split("\\")[-1])
+            try:
+                df = pd.read_csv(my_file, delimiter=';')
+                if df.shape[1] == 5:
+                    Data.append(df)
+                    Target.append(dir_entry_path.split("\\")[-1])
+            except UnicodeDecodeError:
+                print(dir_entry_path.split("\\")[-1])
+                pass
+
+for dir_entry in sorted(os.listdir(path)):
+    dir_entry_path = os.path.join(path, dir_entry)
+    if os.path.isfile(dir_entry_path):
+        i+=1
+        with open(dir_entry_path, 'r') as my_file:
+            print(dir_entry_path.split("\\")[-1])
+            try:
+                df = pd.read_csv(my_file, delimiter=',')
+                if df.shape[1] == 5:
+                    Data.append(df)
+                    Target.append(dir_entry_path.split("\\")[-1])
+            except UnicodeDecodeError:
+                print(dir_entry_path.split("\\")[-1])
+                pass
+                
+                
+ classes = {'тояни' : 0, 'месте' : 0, 'одьб' : 1, 'аг' : 1, 'ег' : 2, 'елоси' : 3, 'естн' : 4, 'одъ' : 4, 
+           'втомо' : 5, 'ашин' : 5, 'метро' : 6, 'лектро' : 7, 'амок' : 8}
+
+answers = {'стояние' : 0, 'ходьба' : 1, 'бег' : 2, 'велосипед' : 3, 'лестница' : 4, 
+           'автомобиль' : 5, 'метро' : 6, 'электросамокат' : 7, 'самокат' : 8}
+
+# стояние, ходьба, велосипед, лестница, бег, подъем, подъём, автомобиль, электросамокат, машина, метро
+
+def get_action(name):
+    for act in classes:
+        if name.lower().find(act) != -1:
+            return classes[act]
+    return -1
+    
+    
+import pandas as pd
+from matplotlib import pylab as plt
+%pylab inline
+
+def process_data(df, comma=True, cut=True, name = "", a=-1, b=-1):
+    
+# обрезаем начало и конец трека
+    if a == -1:
+        st = 1250
+    else:
+        st = a
+            
+    if b == -1:
+        end = -1250
+    else:
+        end = b
+        
+    if cut == False:
+        st = 0
+        end = -1
+
+    print(name)
+#     fig, ((ax1, ax2)) = plt.subplots(nrows=1, ncols=2, figsize=(15,6))
+
+# приводим данные с Iphone к нужному формату
+    if comma is True:
+        df = df.applymap(lambda x: str(x).replace(',','.'))
+        
+        try:
+            df['gFx'] = df['gFx'].astype(float)
+            df['gFy'] = df['gFy'].astype(float)
+            df['gFz'] = df['gFz'].astype(float)
+        except KeyError:
+            return -1
+
+# рисуем графики ускорений
+#     if cut:
+#         ax1.plot(df.iloc[st:end]['gFx'],c='g')
+#         ax1.plot(df.iloc[st:end]['gFy'],c='r')
+#         ax1.plot(df.iloc[st:end]['gFz'],c='b')
+#     else:
+#         ax1.plot(df['gFx'],c='g')
+#         ax1.plot(df['gFy'],c='r')
+#         ax1.plot(df['gFz'],c='b')
+        
+# вычисляем модуль (норму) ускорения и рисуем его
+    Acc = (df.gFx[st:end] ** 2 + df.gFy[st:end] ** 2 + df.gFz[st:end] ** 2) ** 0.5
+#     ax2.plot(Acc)
+#     plt.show()
+
+# можно различить многие действия по амплитуде ускорения
+    amplitude = Acc.max() - Acc.min()
+    print(' АМПЛИТУДА:', Acc.max()-Acc.min())
+    print()
+    
+    return amplitude
+
+Ampl = np.zeros(len(Data)) 
+
+for df, target in zip(Data,Target):
+    track_num = int(target.split('_')[1].split('.')[0]) # важный момент, что треки не по нумерации идут!
+    Ampl[track_num] = process_data(df, name=target)
+    
+    
+def get_prediction(ampl):
+    if ampl < 1:
+        return 0 #стояние
+    if ampl >  5:
+        return 2 #бег
+    return 1 #ходьба
+    
+Ampl_new = []
+
+i=0
+for elem in Ampl:
+    if not (math.isnan(elem) or elem == -1):
+        i+=1
+        Ampl_new.append(elem)
+    else:
+        Ampl_new.append(2)
+len(Ampl_new), i
+
+
+prediction = [get_prediction(a) for a in Ampl]
+
+Res = pd.DataFrame({'track_num' : np.arange(len(Data)), 'action' : prediction})
+Res.head(10)
+
+
+Res.to_csv("first_submit.csv", index=False)
